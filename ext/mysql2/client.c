@@ -67,6 +67,7 @@ struct nogvl_connect_args {
   const char *user;
   const char *passwd;
   const char *db;
+  const char *init_command;
   unsigned int port;
   const char *unix_socket;
   unsigned long client_flag;
@@ -156,10 +157,15 @@ static void *nogvl_connect(void *ptr) {
   struct nogvl_connect_args *args = ptr;
   MYSQL *client;
 
+  if (args->init_command != NULL) {
+    mysql_options(args->mysql, MYSQL_INIT_COMMAND, args->init_command);
+  }
+
   client = mysql_real_connect(args->mysql, args->host,
                               args->user, args->passwd,
                               args->db, args->port, args->unix_socket,
                               args->client_flag);
+
 
   return (void *)(client ? Qtrue : Qfalse);
 }
@@ -335,6 +341,7 @@ static VALUE rb_connect(VALUE self, VALUE user, VALUE pass, VALUE host, VALUE po
   args.db = NIL_P(database) ? NULL : StringValuePtr(database);
   args.mysql = wrapper->client;
   args.client_flag = NUM2ULONG(flags);
+  args.init_command = NULL;
 
   rv = (VALUE) rb_thread_call_without_gvl(nogvl_connect, &args, RUBY_UBF_IO, 0);
   if (rv == Qfalse) {
